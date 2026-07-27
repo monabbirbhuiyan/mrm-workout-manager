@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Clock, Plus, SkipForward, X } from 'lucide-react'
+import { Check, ChevronDown, Clock, Plus, Minus, SkipForward, X } from 'lucide-react'
 import { ApiRoutineDayExercise } from './data'
 
 type SetValues = { weight: number; reps: number }
@@ -203,11 +203,65 @@ export function ActiveWorkout({
   }
 
   const updateValue = (key: string, field: keyof SetValues, raw: string) => {
+    if (raw === '' || raw === '-') {
+      setValues((p) => ({ ...p, [key]: { ...p[key], [field]: 0 } }))
+      return
+    }
     const num = Number.parseInt(raw, 10)
     setValues((p) => ({
       ...p,
       [key]: { ...p[key], [field]: Number.isNaN(num) ? 0 : num },
     }))
+  }
+
+  const addSet = (exerciseId: string) => {
+    setExercises((prev) =>
+      prev.map((ex) => {
+        if (ex.id !== exerciseId) return ex
+        const nextSetNum = ex.sets.length + 1
+        const lastSet = ex.sets[ex.sets.length - 1]
+        const newKey = `${exerciseId}-${nextSetNum}`
+        // Initialize values for the new set
+        setValues((p) => ({
+          ...p,
+          [newKey]: { weight: lastSet?.weight || 0, reps: lastSet?.reps || 10 },
+        }))
+        return {
+          ...ex,
+          sets: [
+            ...ex.sets,
+            {
+              set: nextSetNum,
+              previous: lastSet ? `${lastSet.previous}` : 'New',
+              weight: lastSet?.weight || 0,
+              reps: lastSet?.reps || 10,
+            },
+          ],
+        }
+      }),
+    )
+  }
+
+  const removeSet = (exerciseId: string) => {
+    setExercises((prev) =>
+      prev.map((ex) => {
+        if (ex.id !== exerciseId || ex.sets.length <= 1) return ex
+        const removedSet = ex.sets[ex.sets.length - 1]
+        const removedKey = `${exerciseId}-${removedSet.set}`
+        // Clean up values and completed state for removed set
+        setValues((p) => {
+          const next = { ...p }
+          delete next[removedKey]
+          return next
+        })
+        setCompleted((p) => {
+          const next = { ...p }
+          delete next[removedKey]
+          return next
+        })
+        return { ...ex, sets: ex.sets.slice(0, -1) }
+      }),
+    )
   }
 
   const handleFinish = async () => {
@@ -374,18 +428,22 @@ export function ActiveWorkout({
                               <input
                                 type="number"
                                 inputMode="numeric"
-                                value={values[key]?.weight ?? 0}
+                                value={values[key]?.weight || ''}
                                 onChange={(e) => updateValue(key, 'weight', e.target.value)}
+                                onFocus={(e) => e.target.select()}
                                 aria-label={`Weight for set ${s.set}`}
                                 className="w-full rounded-lg bg-secondary px-2 py-2 text-center text-sm font-semibold tabular-nums text-foreground outline-none transition-all focus:bg-secondary/80 focus:ring-2 focus:ring-primary/50"
+                                placeholder="0"
                               />
                               <input
                                 type="number"
                                 inputMode="numeric"
-                                value={values[key]?.reps ?? 0}
+                                value={values[key]?.reps || ''}
                                 onChange={(e) => updateValue(key, 'reps', e.target.value)}
+                                onFocus={(e) => e.target.select()}
                                 aria-label={`Reps for set ${s.set}`}
                                 className="w-full rounded-lg bg-secondary px-2 py-2 text-center text-sm font-semibold tabular-nums text-foreground outline-none transition-all focus:bg-secondary/80 focus:ring-2 focus:ring-primary/50"
+                                placeholder="0"
                               />
                               <button
                                 type="button"
@@ -406,6 +464,27 @@ export function ActiveWorkout({
                             </div>
                           )
                         })}
+                      </div>
+                      {/* Add / Remove set buttons */}
+                      <div className="mt-2 flex items-center justify-center gap-2">
+                        {ex.sets.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeSet(ex.id)}
+                            className="flex items-center gap-1 rounded-lg bg-secondary/80 px-3 py-1.5 text-[11px] font-bold text-muted-foreground transition-all active:scale-95"
+                          >
+                            <Minus className="h-3 w-3" />
+                            Remove Set
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addSet(ex.id)}
+                          className="flex items-center gap-1 rounded-lg bg-secondary/80 px-3 py-1.5 text-[11px] font-bold text-primary transition-all active:scale-95"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add Set
+                        </button>
                       </div>
                     </div>
                   )}

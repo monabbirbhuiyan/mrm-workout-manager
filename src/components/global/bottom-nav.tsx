@@ -20,7 +20,7 @@ export function BottomNav({
   return (
     <nav
       aria-label="Primary"
-      className="sticky bottom-0 z-20 border-t border-border bg-card/95 px-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl"
+      className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/95 px-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl"
     >
       <ul className="flex items-center justify-around">
         {tabs.map(({ id, label, icon: Icon }) => {

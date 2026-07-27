@@ -52,7 +52,12 @@ export default function Page() {
 
   const handleStartWorkout = (dayId?: string) => {
     if (dayId) {
-      handleOpenDay(dayId)
+      setScreen({
+        type: 'active',
+        exercises: [],
+        dayName: '',
+        routineDayId: dayId,
+      })
     } else {
       setScreen({
         type: 'active',
