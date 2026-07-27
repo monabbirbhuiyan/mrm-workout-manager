@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Plus, Trash2, Dumbbell, AlertTriangle } from 'lucide-react'
+import { Play, Plus, Trash2, Dumbbell, AlertTriangle } from 'lucide-react'
 import { ApiRoutine, ApiRoutineDayExercise } from './data'
 import { ExerciseIllustration } from './exercise-illustrations'
 import {
@@ -266,24 +266,31 @@ function DayCard({
     }
   }, [onDelete, onStart, setOffsetTracked])
 
-  const bgClass = offset > 10
-    ? 'bg-primary/10'
-    : offset < -10
-      ? 'bg-destructive/10'
-      : ''
-
   return (
-    <li
-      onClick={() => onStart()}
-      className={`relative rounded-xl cursor-pointer transition-colors duration-150 ${bgClass}`}
-    >
+    <li className="relative rounded-xl overflow-hidden">
+      {/* Background panels */}
+      <div className="absolute inset-0 flex">
+        {/* Left panel – Start (green) */}
+        <div className="flex w-full items-center justify-start pl-5 bg-primary">
+          <Play className="h-5 w-5 fill-current text-primary-foreground" />
+          <span className="ml-2 text-sm font-bold text-primary-foreground">Start</span>
+        </div>
+        {/* Right panel – Delete (red) */}
+        <div className="flex w-full items-center justify-end pr-5 bg-destructive">
+          <span className="mr-2 text-sm font-bold text-white">Delete</span>
+          <Trash2 className="h-5 w-5 text-white" />
+        </div>
+      </div>
+
+      {/* Foreground card */}
       <div
         ref={cardRef}
+        onClick={() => onStart()}
         style={{
           transform: `translateX(${offset}px)`,
           transition: swipingRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.25,1,0.5,1)',
         }}
-        className="relative flex items-center gap-3 bg-card p-4 ring-1 ring-border select-none touch-pan-y"
+        className="relative flex items-center gap-3 bg-card p-4 ring-1 ring-border select-none touch-pan-y cursor-pointer"
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-[11px] font-bold text-muted-foreground">
           {day.index}
@@ -295,7 +302,7 @@ function DayCard({
           <span className="block text-[11px] text-muted-foreground truncate">
             {day.focus}
           </span>
-          <span className="mt-0.5 block text-[10px] font-bold text-primary/70">
+          <span className="mt-0.5 block text-[10px] font-bold text-primary">
             {day.exercises} Exercises
           </span>
         </span>
@@ -307,7 +314,7 @@ function DayCard({
             onDelete()
           }}
           aria-label={`Delete ${day.title}`}
-          className="p-2 text-muted-foreground/30 hover:text-destructive transition-colors rounded-lg"
+          className="p-2 text-muted-foreground/40 hover:text-destructive transition-colors rounded-lg"
         >
           <Trash2 className="h-4 w-4" />
         </button>

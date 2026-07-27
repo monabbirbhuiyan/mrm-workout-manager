@@ -150,7 +150,7 @@ export default function Page() {
       .then(r => r.json())
       .then(setRoutines)
     setScreen({ type: 'tabs' })
-    setTab('home')
+    setTab('workouts')
   }
 
   const handleCloseDetail = () => {
