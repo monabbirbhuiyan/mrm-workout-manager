@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { ChevronRight, Play, Plus, Trash2, X, Dumbbell, Search, Check, Minus, AlertTriangle } from 'lucide-react'
 import { ApiRoutine, ApiRoutineDayExercise } from './data'
 import { ExerciseIllustration } from './exercise-illustrations'
@@ -202,57 +202,76 @@ function DayCard({
 }) {
   const SWIPE_THRESHOLD = 70
   const [offset, setOffset] = useState(0)
+  const offsetRef = useRef(0)
   const swipingRef = useRef(false)
   const startX = useRef(0)
   const startY = useRef(0)
   const lockedAxis = useRef<'x' | 'y' | null>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation()
-    startX.current = e.touches[0].clientX
-    startY.current = e.touches[0].clientY
-    lockedAxis.current = null
-    swipingRef.current = true
+  // Sync offset state to ref
+  const setOffsetTracked = useCallback((val: number) => {
+    offsetRef.current = val
+    setOffset(val)
   }, [])
 
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+
+    const handleTouchStart = (e: TouchEvent) => {
+      e.stopPropagation()
+      startX.current = e.touches[0].clientX
+      startY.current = e.touches[0].clientY
+      lockedAxis.current = null
+      swipingRef.current = true
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
       if (!swipingRef.current) return
       const dx = e.touches[0].clientX - startX.current
       const dy = e.touches[0].clientY - startY.current
 
-      // Lock axis on first significant movement
       if (!lockedAxis.current) {
         if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return
         lockedAxis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
       }
 
-      if (lockedAxis.current === 'y') return // let vertical scroll happen
+      if (lockedAxis.current === 'y') return
 
       e.preventDefault()
-      e.stopPropagation()
 
-      if (!onDelete && dx > 0) { setOffset(0); return }
-      setOffset(dx)
-    },
-    [onDelete],
-  )
-
-  const handleTouchEnd = useCallback(() => {
-    swipingRef.current = false
-    lockedAxis.current = null
-    if (offset < -SWIPE_THRESHOLD) {
-      setOffset(0)
-      onStart()
-    } else if (offset > SWIPE_THRESHOLD && onDelete) {
-      setOffset(80)
-    } else {
-      setOffset(0)
+      if (!onDelete && dx > 0) { setOffsetTracked(0); return }
+      setOffsetTracked(dx)
     }
-  }, [offset, onStart, onDelete])
 
-  const revealDelete = () => setOffset(80)
-  const hideActions = () => setOffset(0)
+    const handleTouchEnd = () => {
+      swipingRef.current = false
+      lockedAxis.current = null
+      const currentOffset = offsetRef.current
+      if (currentOffset < -SWIPE_THRESHOLD) {
+        setOffsetTracked(0)
+        onStart()
+      } else if (currentOffset > SWIPE_THRESHOLD && onDelete) {
+        setOffsetTracked(80)
+      } else {
+        setOffsetTracked(0)
+      }
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true })
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd, { passive: true })
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [onDelete, onStart, setOffsetTracked])
+
+  const revealDelete = () => setOffsetTracked(80)
+  const hideActions = () => setOffsetTracked(0)
 
   return (
     <li className="relative overflow-hidden rounded-xl">
@@ -266,7 +285,7 @@ function DayCard({
       {onDelete && (
         <button
           type="button"
-          onClick={() => { setOffset(0); onDelete() }}
+          onClick={() => { setOffsetTracked(0); onDelete() }}
           aria-label={`Delete ${day.title}`}
           className="absolute inset-y-0 right-0 flex w-24 items-center justify-center gap-1.5 bg-destructive text-white"
         >
@@ -277,10 +296,8 @@ function DayCard({
 
       {/* Foreground card */}
       <div
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={() => { if (offset === 0) onStart(); else hideActions() }}
+        ref={cardRef}
+        onClick={() => { if (offsetRef.current === 0) onStart(); else hideActions() }}
         style={{
           transform: `translateX(${offset}px)`,
           transition: swipingRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.25,1,0.5,1)',
@@ -307,7 +324,7 @@ function DayCard({
             type="button"
             onClick={(e) => {
               e.stopPropagation()
-              if (offset < 0) hideActions()
+              if (offsetRef.current > 0) hideActions()
               else revealDelete()
             }}
             aria-label="Reveal delete"
