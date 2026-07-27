@@ -224,7 +224,7 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-20 scrollbar-none">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pb-20 scrollbar-none">
         {screen.type === 'tabs' && (
           <>
             {tab === 'home' && (
