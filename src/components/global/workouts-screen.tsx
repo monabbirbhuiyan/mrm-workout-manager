@@ -126,6 +126,7 @@ export function WorkoutsScreen({
                 exercises: day.exerciseCount || 0,
                 index: index + 1,
               }}
+              isFirst={index === 0}
               onStart={() => onStartWorkout(day.id)}
               onDelete={index === 0 ? undefined : () => setDeleteConfirmDay({ id: day.id, title: day.title })}
             />
@@ -144,7 +145,7 @@ export function WorkoutsScreen({
         </ul>
         {days.length > 0 && (
           <p className="mt-3 text-center text-[11px] text-muted-foreground/50">
-            Swipe left to start · Swipe right to delete
+            Swipe right to start · Swipe left to delete
           </p>
         )}
       </section>
@@ -188,31 +189,33 @@ export function WorkoutsScreen({
 }
 
 /* ------------------------------------------------------------------ */
-/*  DayCard – tap = view detail, swipe left = start, swipe right = del */
+/*  DayCard – swipe right = start, swipe left = delete                */
 /* ------------------------------------------------------------------ */
 
 function DayCard({
   day,
+  isFirst,
   onStart,
   onDelete,
 }: {
   day: { id: string; title: string; focus: string; exercises: number; index: number }
+  isFirst: boolean
   onStart: () => void
   onDelete?: () => void
 }) {
-  const SWIPE_THRESHOLD = 70
+  const SWIPE_THRESHOLD = 60
+  const MAX_SWIPE = 100
   const [offset, setOffset] = useState(0)
   const offsetRef = useRef(0)
   const swipingRef = useRef(false)
   const startX = useRef(0)
-  const startY = useRef(0)
   const lockedAxis = useRef<'x' | 'y' | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
 
-  // Sync offset state to ref
   const setOffsetTracked = useCallback((val: number) => {
-    offsetRef.current = val
-    setOffset(val)
+    const clamped = Math.max(-MAX_SWIPE, Math.min(MAX_SWIPE, val))
+    offsetRef.current = clamped
+    setOffset(clamped)
   }, [])
 
   useEffect(() => {
@@ -222,7 +225,6 @@ function DayCard({
     const handleTouchStart = (e: TouchEvent) => {
       e.stopPropagation()
       startX.current = e.touches[0].clientX
-      startY.current = e.touches[0].clientY
       lockedAxis.current = null
       swipingRef.current = true
     }
@@ -230,30 +232,30 @@ function DayCard({
     const handleTouchMove = (e: TouchEvent) => {
       if (!swipingRef.current) return
       const dx = e.touches[0].clientX - startX.current
-      const dy = e.touches[0].clientY - startY.current
 
       if (!lockedAxis.current) {
-        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return
-        lockedAxis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+        if (Math.abs(dx) < 8) return
+        lockedAxis.current = 'x'
       }
-
-      if (lockedAxis.current === 'y') return
 
       e.preventDefault()
 
-      if (!onDelete && dx > 0) { setOffsetTracked(0); return }
+      // Swipe right (positive) = start, swipe left (negative) = delete
+      if (!onDelete && dx < 0) { setOffsetTracked(0); return }
+      if (dx > 0 && !onStart) { setOffsetTracked(0); return }
       setOffsetTracked(dx)
     }
 
     const handleTouchEnd = () => {
       swipingRef.current = false
       lockedAxis.current = null
-      const currentOffset = offsetRef.current
-      if (currentOffset < -SWIPE_THRESHOLD) {
+      const dx = offsetRef.current
+
+      if (dx > SWIPE_THRESHOLD && onStart) {
         setOffsetTracked(0)
         onStart()
-      } else if (currentOffset > SWIPE_THRESHOLD && onDelete) {
-        setOffsetTracked(80)
+      } else if (dx < -SWIPE_THRESHOLD && onDelete) {
+        setOffsetTracked(-MAX_SWIPE)
       } else {
         setOffsetTracked(0)
       }
@@ -270,18 +272,18 @@ function DayCard({
     }
   }, [onDelete, onStart, setOffsetTracked])
 
-  const revealDelete = () => setOffsetTracked(80)
+  const revealDelete = () => setOffsetTracked(-MAX_SWIPE)
   const hideActions = () => setOffsetTracked(0)
 
   return (
     <li className="relative overflow-hidden rounded-xl">
-      {/* Left reveal – start */}
+      {/* Left reveal – start (visible when swiping right) */}
       <div className="absolute inset-y-0 left-0 flex w-24 items-center justify-start pl-5 bg-primary text-primary-foreground">
         <Play className="h-4 w-4 fill-current" />
         <span className="ml-1.5 text-xs font-bold">Start</span>
       </div>
 
-      {/* Right reveal – delete */}
+      {/* Right reveal – delete (visible when swiping left) */}
       {onDelete && (
         <button
           type="button"
@@ -302,7 +304,7 @@ function DayCard({
           transform: `translateX(${offset}px)`,
           transition: swipingRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.25,1,0.5,1)',
         }}
-        className="relative flex items-center gap-3 bg-card p-4 ring-1 ring-border cursor-pointer select-none"
+        className={`relative flex items-center gap-3 bg-card p-4 ring-1 ring-border cursor-pointer select-none touch-pan-y ${isFirst ? 'swipe-hint' : ''}`}
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-[11px] font-bold text-muted-foreground">
           {day.index}
@@ -324,14 +326,14 @@ function DayCard({
             type="button"
             onClick={(e) => {
               e.stopPropagation()
-              if (offsetRef.current > 0) hideActions()
+              if (offsetRef.current < 0) hideActions()
               else revealDelete()
             }}
             aria-label="Reveal delete"
             className="pointer-events-auto text-muted-foreground/50"
           >
             <ChevronRight
-              className={`h-5 w-5 transition-transform duration-200 ${offset > 0 ? 'rotate-180' : ''}`}
+              className={`h-5 w-5 transition-transform duration-200 ${offset < 0 ? 'rotate-180' : ''}`}
             />
           </button>
         ) : (

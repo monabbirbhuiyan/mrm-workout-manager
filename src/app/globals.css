@@ -93,6 +93,9 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    @apply overflow-x-hidden;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -107,4 +110,14 @@
 
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+@keyframes swipe-hint {
+  0%, 100% { transform: translateX(0); }
+  30% { transform: translateX(20px); }
+  60% { transform: translateX(-10px); }
+}
+
+.swipe-hint {
+  animation: swipe-hint 1.2s ease-in-out 1s 1;
 }
