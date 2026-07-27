@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { ChevronRight, Play, Plus, Trash2, X, Dumbbell, Search, Check, Minus } from 'lucide-react'
+import { ChevronRight, Play, Plus, Trash2, X, Dumbbell, Search, Check, Minus, AlertTriangle } from 'lucide-react'
 import { ApiRoutine, ApiRoutineDayExercise } from './data'
 import { ExerciseIllustration } from './exercise-illustrations'
 import {
@@ -24,6 +24,7 @@ export function WorkoutsScreen({
 }) {
   const [addedCount, setAddedCount] = useState(0)
   const [removingDayId, setRemovingDayId] = useState<string | null>(null)
+  const [deleteConfirmDay, setDeleteConfirmDay] = useState<{ id: string; title: string } | null>(null)
 
   const activeRoutine = routines.find(r => r.isActive)
 
@@ -37,6 +38,7 @@ export function WorkoutsScreen({
         )
       )
       setRemovingDayId(null)
+      setDeleteConfirmDay(null)
     } catch (err) {
       console.error('Failed to delete day:', err)
     }
@@ -125,7 +127,7 @@ export function WorkoutsScreen({
                 index: index + 1,
               }}
               onStart={() => onStartWorkout(day.id)}
-              onDelete={index === 0 ? undefined : () => removeDay(day.id)}
+              onDelete={index === 0 ? undefined : () => setDeleteConfirmDay({ id: day.id, title: day.title })}
             />
           ))}
           {(!activeRoutine || days.length === 0) && (
@@ -142,10 +144,45 @@ export function WorkoutsScreen({
         </ul>
         {days.length > 0 && (
           <p className="mt-3 text-center text-[11px] text-muted-foreground/50">
-            Tap to view · Swipe left to start · Swipe right to delete
+            Swipe left to start · Swipe right to delete
           </p>
         )}
       </section>
+
+      {/* Delete confirmation dialog */}
+      {deleteConfirmDay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-6">
+          <div className="w-full max-w-sm rounded-2xl bg-card p-6 ring-1 ring-border shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Delete Day?</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  &ldquo;{deleteConfirmDay.title}&rdquo; will be permanently removed.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmDay(null)}
+                className="flex-1 rounded-xl bg-secondary px-4 py-2.5 text-xs font-bold text-secondary-foreground transition active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => removeDay(deleteConfirmDay.id)}
+                className="flex-1 rounded-xl bg-destructive px-4 py-2.5 text-xs font-bold text-white transition active:scale-95"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -165,27 +202,45 @@ function DayCard({
 }) {
   const SWIPE_THRESHOLD = 70
   const [offset, setOffset] = useState(0)
-  const [swiping, setSwiping] = useState(false)
+  const swipingRef = useRef(false)
   const startX = useRef(0)
-  const cardRef = useRef<HTMLDivElement>(null)
+  const startY = useRef(0)
+  const lockedAxis = useRef<'x' | 'y' | null>(null)
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation()
     startX.current = e.touches[0].clientX
-    setSwiping(true)
+    startY.current = e.touches[0].clientY
+    lockedAxis.current = null
+    swipingRef.current = true
   }, [])
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      if (!swiping) return
-      const delta = e.touches[0].clientX - startX.current
-      if (!onDelete && delta > 0) { setOffset(0); return }
-      setOffset(delta)
+      if (!swipingRef.current) return
+      const dx = e.touches[0].clientX - startX.current
+      const dy = e.touches[0].clientY - startY.current
+
+      // Lock axis on first significant movement
+      if (!lockedAxis.current) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return
+        lockedAxis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+      }
+
+      if (lockedAxis.current === 'y') return // let vertical scroll happen
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      if (!onDelete && dx > 0) { setOffset(0); return }
+      setOffset(dx)
     },
-    [swiping, onDelete],
+    [onDelete],
   )
 
   const handleTouchEnd = useCallback(() => {
-    setSwiping(false)
+    swipingRef.current = false
+    lockedAxis.current = null
     if (offset < -SWIPE_THRESHOLD) {
       setOffset(0)
       onStart()
@@ -222,14 +277,13 @@ function DayCard({
 
       {/* Foreground card */}
       <div
-        ref={cardRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={() => { if (offset === 0) onStart(); else hideActions() }}
         style={{
           transform: `translateX(${offset}px)`,
-          transition: swiping ? 'none' : 'transform 0.3s cubic-bezier(0.25,1,0.5,1)',
+          transition: swipingRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.25,1,0.5,1)',
         }}
         className="relative flex items-center gap-3 bg-card p-4 ring-1 ring-border cursor-pointer select-none"
       >
