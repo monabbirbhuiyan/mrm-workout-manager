@@ -18,6 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "MRM Workout Manager",
   description: "Track your workouts, monitor progress, and optimize your training",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -25,6 +26,9 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  other: {
+    "theme-color": "#e94560",
   },
 };
 
@@ -52,6 +56,10 @@ export default function RootLayout({
         inter.variable
       )}
     >
+      <head>
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="theme-color" content="#e94560" />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
