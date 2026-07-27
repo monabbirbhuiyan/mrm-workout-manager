@@ -6,11 +6,12 @@ import {
   Download,
   HeartPulse,
   Link2,
-  Palette,
+  Moon,
   Timer,
   User,
   Volume2,
 } from 'lucide-react'
+import { useTheme } from '@/components/global/theme-provider'
 
 function Toggle({
   label,
@@ -76,10 +77,10 @@ function NavRow({
 }
 
 export function SettingsScreen({ userName: defaultName }: { userName: string }) {
+  const { darkMode, toggleDarkMode } = useTheme()
   const [userName, setUserName] = useState(defaultName)
   const [restAutoStart, setRestAutoStart] = useState(true)
   const [audioAlerts, setAudioAlerts] = useState(true)
-  const [highContrast, setHighContrast] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(defaultName)
   const [saving, setSaving] = useState(false)
@@ -94,7 +95,6 @@ export function SettingsScreen({ userName: defaultName }: { userName: string }) 
         }
         if (settings.restTimerAutoStart) setRestAutoStart(settings.restTimerAutoStart === 'true')
         if (settings.audioAlerts) setAudioAlerts(settings.audioAlerts === 'true')
-        if (settings.highContrast) setHighContrast(settings.highContrast === 'true')
       })
       .catch(console.error)
   }, [])
@@ -232,14 +232,10 @@ export function SettingsScreen({ userName: defaultName }: { userName: string }) 
             }}
           />
           <Toggle
-            label="High Contrast Dark Mode"
-            icon={Palette}
-            checked={highContrast}
-            onChange={() => {
-              const next = !highContrast
-              setHighContrast(next)
-              updateSetting('highContrast', String(next))
-            }}
+            label="Dark Mode"
+            icon={Moon}
+            checked={darkMode}
+            onChange={toggleDarkMode}
           />
         </div>
       </section>

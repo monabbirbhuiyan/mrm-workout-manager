@@ -75,7 +75,7 @@ export function LineChart({ data }: { data: Point[] }) {
             cx={p.x}
             cy={p.y}
             r="3.5"
-            fill="var(--color-background, #0f172a)"
+            fill="var(--color-background, #f8f9fa)"
             stroke={accentColor}
             strokeWidth="2"
           />

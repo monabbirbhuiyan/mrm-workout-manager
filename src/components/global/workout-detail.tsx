@@ -155,7 +155,7 @@ export default function WorkoutDetail({
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleDeleteExercise(de.id)}
-                          className="p-1.5 bg-red-50 text-red-600 rounded-lg"
+                          className="p-1.5 bg-destructive/10 text-destructive rounded-lg"
                         >
                           <Check size={14} />
                         </button>
@@ -169,7 +169,7 @@ export default function WorkoutDetail({
                     ) : (
                       <button
                         onClick={() => setExerciseToDelete(de.id)}
-                        className="p-1.5 hover:bg-red-50 text-muted-foreground/40 hover:text-red-500 rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive rounded-lg transition-colors"
                       >
                         <Trash2 size={14} />
                       </button>

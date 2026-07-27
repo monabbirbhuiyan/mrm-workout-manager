@@ -55,7 +55,7 @@ export default function SignUpPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
               {error}
             </div>
           )}

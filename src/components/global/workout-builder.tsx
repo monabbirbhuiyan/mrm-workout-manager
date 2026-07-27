@@ -316,7 +316,7 @@ export default function WorkoutBuilder({
                   </div>
                   <button
                     onClick={() => toggleExercise(s.lib)}
-                    className="p-1.5 hover:bg-red-50 text-muted-foreground/50 hover:text-red-500 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive rounded-lg transition-colors"
                   >
                     <X size={14} />
                   </button>
