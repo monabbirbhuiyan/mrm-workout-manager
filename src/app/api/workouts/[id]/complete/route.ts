@@ -1,23 +1,56 @@
-import { NextResponse } from 'next/server'
-import { db } from '@/db'
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { db } from "@/db";
+import { requireAuth, unauthorizedResponse } from "@/lib/api-auth";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
+
+const workoutSetSchema = z.object({
+  exerciseName: z.string().min(1),
+  setNumber: z.number().int().min(1),
+  weight: z.number().min(0),
+  reps: z.number().int().min(0),
+  completed: z.boolean(),
+});
+
+const completeWorkoutSchema = z.object({
+  sets: z.array(workoutSetSchema).optional(),
+  totalVolume: z.number().min(0).optional(),
+  totalSets: z.number().int().min(0).optional(),
+  completedSets: z.number().int().min(0).optional(),
+  durationSeconds: z.number().int().min(0).optional(),
+  notes: z.string().max(1000).optional(),
+});
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
-  const body = await request.json()
+  const session = await requireAuth(request);
+  if (!session) return unauthorizedResponse();
 
-  const workout = await db.workout.findUnique({ where: { id } })
+  const { id } = await params;
+
+  const workout = await db.workout.findUnique({ where: { id } });
   if (!workout) {
-    return NextResponse.json({ error: 'Workout not found' }, { status: 404 })
+    return NextResponse.json({ error: "Workout not found" }, { status: 404 });
   }
 
-  if (body.sets && Array.isArray(body.sets)) {
+  const body = await request.json();
+  const parsed = completeWorkoutSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  const data = parsed.data;
+
+  if (data.sets && data.sets.length > 0) {
     await db.workoutSet.createMany({
-      data: body.sets.map((s: { exerciseName: string; setNumber: number; weight: number; reps: number; completed: boolean }) => ({
+      data: data.sets.map((s) => ({
         workoutId: id,
         exerciseName: s.exerciseName,
         setNumber: s.setNumber,
@@ -25,25 +58,20 @@ export async function POST(
         reps: s.reps,
         completed: s.completed,
       })),
-    })
+    });
   }
-
-  const totalVolume = body.totalVolume ?? workout.totalVolume
-  const totalSets = body.totalSets ?? workout.totalSets
-  const completedSets = body.completedSets ?? workout.completedSets
-  const durationSeconds = body.durationSeconds ?? workout.durationSeconds
 
   const updated = await db.workout.update({
     where: { id },
     data: {
       completedAt: new Date(),
-      durationSeconds,
-      totalVolume,
-      totalSets,
-      completedSets,
-      notes: body.notes,
+      durationSeconds: data.durationSeconds ?? workout.durationSeconds,
+      totalVolume: data.totalVolume ?? workout.totalVolume,
+      totalSets: data.totalSets ?? workout.totalSets,
+      completedSets: data.completedSets ?? workout.completedSets,
+      notes: data.notes,
     },
-  })
+  });
 
-  return NextResponse.json(updated)
+  return NextResponse.json(updated);
 }

@@ -22,22 +22,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem('darkMode')
-    if (saved === 'true') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const shouldBeDark = saved ? saved === 'true' : prefersDark
+
+    if (shouldBeDark) {
       document.documentElement.classList.add('dark')
       setDarkMode(true)
     }
     setMounted(true)
-  }, [])
 
-  useEffect(() => {
     fetch('/api/settings')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load settings')
+        return r.json()
+      })
       .then((settings: Record<string, string>) => {
         if (settings.darkMode === 'true') {
           document.documentElement.classList.add('dark')
           setDarkMode(true)
           localStorage.setItem('darkMode', 'true')
-        } else {
+        } else if (settings.darkMode === 'false') {
           document.documentElement.classList.remove('dark')
           setDarkMode(false)
           localStorage.setItem('darkMode', 'false')
@@ -60,7 +64,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ darkMode: String(next) }),
-      }).catch(console.error)
+      }).catch(() => {})
 
       return next
     })

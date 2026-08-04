@@ -1,26 +1,53 @@
-import { NextResponse } from 'next/server'
-import { db } from '@/db'
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { db } from "@/db";
+import { requireAuth, unauthorizedResponse } from "@/lib/api-auth";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
+
+const createWorkoutSchema = z.object({
+  routineDayId: z.string().optional(),
+  name: z.string().min(1, "Name is required").max(100),
+});
 
 export async function GET() {
   const workouts = await db.workout.findMany({
-    orderBy: { startedAt: 'desc' },
-  })
+    orderBy: { startedAt: "desc" },
+  });
 
-  return NextResponse.json(workouts)
+  return NextResponse.json(workouts);
 }
 
-export async function POST(request: Request) {
-  const body = await request.json()
+export async function POST(request: NextRequest) {
+  const session = await requireAuth(request);
+  if (!session) return unauthorizedResponse();
+
+  const body = await request.json();
+  const parsed = createWorkoutSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  if (parsed.data.routineDayId) {
+    const day = await db.routineDay.findUnique({
+      where: { id: parsed.data.routineDayId },
+    });
+    if (!day) {
+      return NextResponse.json({ error: "Routine day not found" }, { status: 404 });
+    }
+  }
 
   const workout = await db.workout.create({
     data: {
-      routineDayId: body.routineDayId,
-      name: body.name,
+      routineDayId: parsed.data.routineDayId || null,
+      name: parsed.data.name,
       startedAt: new Date(),
     },
-  })
+  });
 
-  return NextResponse.json(workout, { status: 201 })
+  return NextResponse.json(workout, { status: 201 });
 }

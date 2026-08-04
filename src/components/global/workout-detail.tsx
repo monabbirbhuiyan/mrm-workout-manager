@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Play,
@@ -54,6 +54,8 @@ export default function WorkoutDetail({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [exerciseToDelete, setExerciseToDelete] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredLibrary = EXERCISE_LIBRARY.filter((ex) => {
     const matchesSearch =
@@ -97,12 +99,56 @@ export default function WorkoutDetail({
     onStart(exercises);
   };
 
+  const closeModal = () => {
+    setShowAddModal(false);
+    setSearchQuery("");
+    setSelectedMuscle(null);
+  };
+
+  useEffect(() => {
+    if (!showAddModal) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab" && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last?.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first?.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("keydown", handleKeyDown);
+    searchInputRef.current?.focus();
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showAddModal]);
+
   return (
     <div className="relative flex flex-col h-full bg-background">
-      {/* Header */}
       <div className="px-5 pt-4 pb-3">
         <div className="flex items-center gap-3 mb-1">
-          <button onClick={onBack} className="p-2 -ml-2 hover:bg-secondary rounded-xl transition-colors">
+          <button onClick={onBack} aria-label="Go back" className="p-2 -ml-2 hover:bg-secondary rounded-xl transition-colors">
             <ArrowLeft size={20} className="text-muted-foreground" />
           </button>
           <div className="flex-1">
@@ -112,7 +158,6 @@ export default function WorkoutDetail({
         </div>
       </div>
 
-      {/* Exercise List */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-5">
         {dayExercises.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -155,12 +200,14 @@ export default function WorkoutDetail({
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleDeleteExercise(de.id)}
+                          aria-label="Confirm delete"
                           className="p-1.5 bg-destructive/10 text-destructive rounded-lg"
                         >
                           <Check size={14} />
                         </button>
                         <button
                           onClick={() => setExerciseToDelete(null)}
+                          aria-label="Cancel delete"
                           className="p-1.5 bg-secondary text-muted-foreground rounded-lg"
                         >
                           <X size={14} />
@@ -169,6 +216,7 @@ export default function WorkoutDetail({
                     ) : (
                       <button
                         onClick={() => setExerciseToDelete(de.id)}
+                        aria-label={`Delete ${de.exercise?.name || de.exercise_name}`}
                         className="p-1.5 hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive rounded-lg transition-colors"
                       >
                         <Trash2 size={14} />
@@ -190,7 +238,6 @@ export default function WorkoutDetail({
         )}
       </div>
 
-      {/* Start Button – outside scroll area */}
       {dayExercises.length > 0 && (
         <div className="shrink-0 px-5 pt-3 pb-20">
           <button
@@ -203,34 +250,40 @@ export default function WorkoutDetail({
         </div>
       )}
 
-      {/* Add Exercise Modal */}
       {showAddModal && (
-        <div className="absolute inset-0 bg-black/40 z-50 flex flex-col">
+        <div
+          className="absolute inset-0 bg-black/40 z-50 flex flex-col"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add exercise"
+          ref={modalRef}
+        >
           <div className="flex flex-col h-full bg-background mt-auto rounded-t-3xl max-h-[85%]">
-            {/* Modal Header */}
             <div className="px-5 pt-4 pb-3 border-b border-border">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-bold text-foreground">Add Exercise</h2>
                 <button
-                  onClick={() => { setShowAddModal(false); setSearchQuery(""); setSelectedMuscle(null); }}
+                  onClick={closeModal}
+                  aria-label="Close modal"
                   className="p-2 -mr-2 hover:bg-secondary rounded-xl"
                 >
                   <X size={20} className="text-muted-foreground" />
                 </button>
               </div>
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search exercises..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2.5 bg-secondary border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors"
-                autoFocus
               />
               <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
                 {(["chest", "back", "shoulders", "biceps", "triceps", "legs", "glutes", "core"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setSelectedMuscle(selectedMuscle === m ? null : m)}
+                    aria-pressed={selectedMuscle === m}
                     className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                       selectedMuscle === m
                         ? "bg-primary text-primary-foreground"
@@ -243,7 +296,6 @@ export default function WorkoutDetail({
               </div>
             </div>
 
-            {/* Exercise Results */}
             <div className="flex-1 overflow-y-auto px-5 py-3">
               {filteredLibrary.length === 0 ? (
                 <div className="text-center py-12">

@@ -40,6 +40,7 @@ export function ActiveWorkout({
   const [restActive, setRestActive] = useState(false)
   const [restRemaining, setRestRemaining] = useState(60)
   const [finishOpen, setFinishOpen] = useState(false)
+  const [saveError, setSaveError] = useState(false)
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -135,6 +136,7 @@ export function ActiveWorkout({
             name: dayName || 'Workout',
           }),
         })
+        if (!res.ok) throw new Error('Failed to create workout')
         const workout = await res.json()
         setWorkoutId(workout.id)
       } catch (err) {
@@ -290,7 +292,7 @@ export function ActiveWorkout({
     }
 
     try {
-      await fetch(`/api/workouts/${workoutId}/complete`, {
+      const res = await fetch(`/api/workouts/${workoutId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -301,8 +303,11 @@ export function ActiveWorkout({
           durationSeconds: elapsed,
         }),
       })
+      if (!res.ok) throw new Error('Failed to save workout')
     } catch (err) {
       console.error('Failed to save workout:', err)
+      setSaveError(true)
+      return
     }
 
     setFinishOpen(true)
@@ -335,11 +340,18 @@ export function ActiveWorkout({
         <button
           type="button"
           onClick={handleFinish}
+          aria-label="Finish workout"
           className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-[0_0_16px_-4px_rgba(34,197,94,0.5)] transition-all hover:shadow-[0_0_20px_-4px_rgba(34,197,94,0.6)] active:scale-95"
         >
           Finish
         </button>
       </header>
+
+      {saveError && (
+        <div className="bg-destructive text-white px-4 py-2 text-xs font-medium text-center">
+          Failed to save workout. Please try again.
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="h-1 bg-secondary">

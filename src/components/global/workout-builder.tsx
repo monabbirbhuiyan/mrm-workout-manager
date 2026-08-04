@@ -45,7 +45,10 @@ export default function WorkoutBuilder({
 
   useEffect(() => {
     fetch("/api/exercises")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load exercises")
+        return r.json()
+      })
       .then((exercises: { id: string; name: string }[]) => {
         const map: Record<string, string> = {};
         for (const e of exercises) {
@@ -53,7 +56,7 @@ export default function WorkoutBuilder({
         }
         setDbExerciseMap(map);
       })
-      .catch(console.error);
+      .catch(() => {});
   }, []);
 
   const filteredLibrary = EXERCISE_LIBRARY.filter((ex) => {
@@ -131,7 +134,7 @@ export default function WorkoutBuilder({
           console.error(`Exercise "${ex.lib.name}" not found in database`);
           continue;
         }
-        await fetch(`/api/routines/${routineId}/days/${newDay.id}`, {
+        const exRes = await fetch(`/api/routines/${routineId}/days/${newDay.id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -141,6 +144,9 @@ export default function WorkoutBuilder({
             restSeconds: ex.restSeconds,
           }),
         });
+        if (!exRes.ok) {
+          console.error(`Failed to add exercise "${ex.lib.name}"`);
+        }
       }
 
       onDayCreated(newDay.id);

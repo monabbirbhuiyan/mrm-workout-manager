@@ -53,7 +53,10 @@ export function HomeScreen({
 
   useEffect(() => {
     fetch('/api/workouts')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load workouts')
+        return r.json()
+      })
       .then((workouts: ApiWorkout[]) => {
         setRecentWorkouts(workouts.slice(0, 3))
         const newCompleted: Record<string, boolean> = {}
@@ -70,7 +73,7 @@ export function HomeScreen({
         }
         setCompleted(newCompleted)
       })
-      .catch(console.error)
+      .catch(() => {})
   }, [])
 
   const firstRoutine = routines[0]

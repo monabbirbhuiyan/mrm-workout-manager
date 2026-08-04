@@ -87,7 +87,10 @@ export function SettingsScreen({ userName: defaultName }: { userName: string }) 
 
   useEffect(() => {
     fetch('/api/settings')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load settings')
+        return r.json()
+      })
       .then((settings: Record<string, string>) => {
         if (settings.userName && settings.userName !== 'User') {
           setUserName(settings.userName)
@@ -96,17 +99,18 @@ export function SettingsScreen({ userName: defaultName }: { userName: string }) 
         if (settings.restTimerAutoStart) setRestAutoStart(settings.restTimerAutoStart === 'true')
         if (settings.audioAlerts) setAudioAlerts(settings.audioAlerts === 'true')
       })
-      .catch(console.error)
+      .catch(() => {})
   }, [])
 
   const updateSetting = async (key: string, value: string) => {
     setSaving(true)
     try {
-      await fetch('/api/settings', {
+      const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [key]: value }),
       })
+      if (!res.ok) throw new Error('Failed to save')
     } catch (err) {
       console.error('Failed to save setting:', err)
     } finally {
@@ -123,6 +127,7 @@ export function SettingsScreen({ userName: defaultName }: { userName: string }) 
   const exportCSV = async () => {
     try {
       const res = await fetch('/api/workouts')
+      if (!res.ok) throw new Error('Failed to load workouts')
       const workouts = await res.json()
 
       let csv = 'Date,Name,Duration (min),Volume (kg),Sets,Completed Sets\n'

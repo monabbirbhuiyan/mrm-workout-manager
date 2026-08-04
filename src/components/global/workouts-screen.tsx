@@ -14,11 +14,13 @@ import {
 export function WorkoutsScreen({
   onStartWorkout,
   onStartBuilder,
+  onOpenDetail,
   routines,
   onRoutinesChange,
 }: {
   onStartWorkout: (routineDayId?: string) => void
   onStartBuilder: (routineId: string, dayId?: string) => void
+  onOpenDetail: (dayId: string) => void
   routines: ApiRoutine[]
   onRoutinesChange: (routines: ApiRoutine[]) => void
 }) {
@@ -28,10 +30,13 @@ export function WorkoutsScreen({
 
   const activeRoutine = routines.find(r => r.isActive)
 
+  const [deleteError, setDeleteError] = useState(false)
+
   const removeDay = async (dayId: string) => {
     if (!activeRoutine) return
     try {
-      await fetch(`/api/routines/${activeRoutine.id}/days/${dayId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/routines/${activeRoutine.id}/days/${dayId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete')
       onRoutinesChange(
         routines.map(r =>
           r.id === activeRoutine.id ? { ...r, days: r.days.filter(d => d.id !== dayId) } : r
@@ -41,6 +46,8 @@ export function WorkoutsScreen({
       setDeleteConfirmDay(null)
     } catch (err) {
       console.error('Failed to delete day:', err)
+      setDeleteError(true)
+      setTimeout(() => setDeleteError(false), 3000)
     }
   }
 
@@ -127,6 +134,7 @@ export function WorkoutsScreen({
                 index: index + 1,
               }}
               onStart={() => onStartWorkout(day.id)}
+              onEdit={() => onOpenDetail(day.id)}
               onDelete={() => setDeleteConfirmDay({ id: day.id, title: day.title })}
             />
           ))}
@@ -144,26 +152,34 @@ export function WorkoutsScreen({
         </ul>
         {days.length > 0 && (
           <p className="mt-3 text-center text-[11px] text-muted-foreground/50">
-            Tap to start · Swipe right to start · Swipe left to delete
+            Tap to edit · Swipe right to start · Swipe left to delete
           </p>
         )}
       </section>
 
       {/* Delete confirmation dialog */}
       {deleteConfirmDay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
           <div className="w-full max-w-sm rounded-2xl bg-card p-6 ring-1 ring-border shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-foreground">Delete Day?</h3>
+                <h3 id="delete-dialog-title" className="text-sm font-bold text-foreground">Delete Day?</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   &ldquo;{deleteConfirmDay.title}&rdquo; will be permanently removed.
                 </p>
               </div>
             </div>
+            {deleteError && (
+              <p className="mt-3 text-xs text-destructive font-medium">Failed to delete. Please try again.</p>
+            )}
             <div className="mt-5 flex gap-3">
               <button
                 type="button"
@@ -194,10 +210,12 @@ export function WorkoutsScreen({
 function DayCard({
   day,
   onStart,
+  onEdit,
   onDelete,
 }: {
   day: { id: string; title: string; focus: string; exercises: number; index: number }
   onStart: () => void
+  onEdit: () => void
   onDelete: () => void
 }) {
   const SWIPE_THRESHOLD = 60
@@ -207,7 +225,7 @@ function DayCard({
   const swipingRef = useRef(false)
   const startX = useRef(0)
   const lockedAxis = useRef<'x' | 'y' | null>(null)
-  const cardRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLButtonElement>(null)
 
   const setOffsetTracked = useCallback((val: number) => {
     const clamped = Math.max(-MAX_SWIPE, Math.min(MAX_SWIPE, val))
@@ -283,14 +301,16 @@ function DayCard({
       </div>
 
       {/* Foreground card */}
-      <div
+      <button
+        type="button"
         ref={cardRef}
-        onClick={() => onStart()}
+        onClick={() => onEdit()}
+        aria-label={`Edit ${day.title}`}
         style={{
           transform: `translateX(${offset}px)`,
           transition: swipingRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.25,1,0.5,1)',
         }}
-        className="relative flex items-center gap-3 bg-card p-4 ring-1 ring-border select-none touch-pan-y cursor-pointer"
+        className="relative flex items-center gap-3 bg-card p-4 ring-1 ring-border select-none touch-pan-y cursor-pointer text-left w-full"
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-[11px] font-bold text-muted-foreground">
           {day.index}
@@ -318,7 +338,7 @@ function DayCard({
         >
           <Trash2 className="h-4 w-4" />
         </button>
-      </div>
+      </button>
     </li>
   )
 }

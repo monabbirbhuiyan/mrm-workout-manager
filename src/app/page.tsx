@@ -11,7 +11,6 @@ import WorkoutDetail from '@/components/global/workout-detail'
 import WorkoutBuilder from '@/components/global/workout-builder'
 import { useSession, signOut } from '@/lib/auth-client'
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { Dumbbell, LogOut, Loader2 } from 'lucide-react'
 
 type Screen =
@@ -25,13 +24,23 @@ export default function Page() {
   const [tab, setTab] = useState<TabId>('home')
   const [screen, setScreen] = useState<Screen>({ type: 'tabs' })
   const [routines, setRoutines] = useState<ApiRoutine[]>([])
+  const [routinesLoading, setRoutinesLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (session) {
+      setRoutinesLoading(true)
       fetch('/api/routines')
-        .then(r => r.json())
+        .then(r => {
+          if (!r.ok) throw new Error('Failed to load routines')
+          return r.json()
+        })
         .then(setRoutines)
-        .catch(console.error)
+        .catch(err => {
+          console.error(err)
+          setError('Failed to load routines')
+        })
+        .finally(() => setRoutinesLoading(false))
     }
   }, [screen.type, session])
 
@@ -74,11 +83,15 @@ export default function Page() {
 
   const handleDayCreated = (dayId: string) => {
     fetch('/api/routines')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load routines')
+        return r.json()
+      })
       .then((data) => {
         setRoutines(data)
         setScreen({ type: 'tabs' })
       })
+      .catch(err => console.error(err))
   }
 
   const handleStartFromDetail = (
@@ -96,13 +109,15 @@ export default function Page() {
   const handleAddExerciseToDay = async (exerciseId: string, sets: number, reps: number, restSeconds: number) => {
     if (screen.type !== 'detail') return
     try {
-      await fetch(`/api/routines/${screen.routineId}/days/${screen.dayId}`, {
+      const res = await fetch(`/api/routines/${screen.routineId}/days/${screen.dayId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exerciseId, targetSets: sets, targetReps: reps, restSeconds }),
       })
-      const res = await fetch('/api/routines')
-      const data = await res.json()
+      if (!res.ok) throw new Error('Failed to add exercise')
+      const routinesRes = await fetch('/api/routines')
+      if (!routinesRes.ok) throw new Error('Failed to load routines')
+      const data = await routinesRes.json()
       setRoutines(data)
       const updatedRoutine = data.find((r: ApiRoutine) => r.id === screen.routineId)
       const updatedDay = updatedRoutine?.days.find((d: { id: string }) => d.id === screen.dayId)
@@ -117,17 +132,21 @@ export default function Page() {
       }
     } catch (err) {
       console.error('Failed to add exercise:', err)
+      setError('Failed to add exercise')
+      setTimeout(() => setError(null), 3000)
     }
   }
 
   const handleRemoveExerciseFromDay = async (exerciseDayId: string) => {
     if (screen.type !== 'detail') return
     try {
-      await fetch(`/api/routines/${screen.routineId}/days/${screen.dayId}?exerciseId=${exerciseDayId}`, {
+      const res = await fetch(`/api/routines/${screen.routineId}/days/${screen.dayId}?exerciseId=${exerciseDayId}`, {
         method: 'DELETE',
       })
-      const res = await fetch('/api/routines')
-      const data = await res.json()
+      if (!res.ok) throw new Error('Failed to remove exercise')
+      const routinesRes = await fetch('/api/routines')
+      if (!routinesRes.ok) throw new Error('Failed to load routines')
+      const data = await routinesRes.json()
       setRoutines(data)
       const updatedRoutine = data.find((r: ApiRoutine) => r.id === screen.routineId)
       const updatedDay = updatedRoutine?.days.find((d: { id: string }) => d.id === screen.dayId)
@@ -142,13 +161,19 @@ export default function Page() {
       }
     } catch (err) {
       console.error('Failed to remove exercise:', err)
+      setError('Failed to remove exercise')
+      setTimeout(() => setError(null), 3000)
     }
   }
 
   const handleCloseActive = () => {
     fetch('/api/routines')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load routines')
+        return r.json()
+      })
       .then(setRoutines)
+      .catch(err => console.error(err))
     setScreen({ type: 'tabs' })
     setTab('workouts')
   }
@@ -158,10 +183,13 @@ export default function Page() {
   }
 
   const handleSignOut = async () => {
-    await signOut()
+    try {
+      await signOut()
+    } catch (err) {
+      console.error('Failed to sign out:', err)
+    }
   }
 
-  // Loading state
   if (isPending) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-background">
@@ -173,7 +201,6 @@ export default function Page() {
     )
   }
 
-  // Not authenticated - show landing page
   if (!session) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-background p-5">
@@ -187,18 +214,18 @@ export default function Page() {
           </div>
 
           <div className="space-y-3">
-            <Link
+            <a
               href="/sign-in"
               className="block w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-bold text-sm transition-all active:scale-[0.98]"
             >
               Sign In
-            </Link>
-            <Link
+            </a>
+            <a
               href="/sign-up"
               className="block w-full py-3.5 bg-secondary text-foreground border border-border rounded-xl font-bold text-sm transition-all active:scale-[0.98]"
             >
               Create Account
-            </Link>
+            </a>
           </div>
 
           <p className="mt-8 text-xs text-muted-foreground/60">
@@ -209,10 +236,14 @@ export default function Page() {
     )
   }
 
-  // Authenticated - show app
   return (
     <main className="flex min-h-dvh flex-col bg-background">
-      {/* User bar */}
+      {error && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-destructive text-white px-4 py-3 text-sm font-medium text-center">
+          {error}
+        </div>
+      )}
+
       <div className="sticky top-0 z-30 flex items-center justify-between bg-card px-4 py-3 border-b border-border safe-area-top">
         <div />
         <div className="flex items-center gap-2">
@@ -243,6 +274,7 @@ export default function Page() {
               <WorkoutsScreen
                 onStartWorkout={handleStartWorkout}
                 onStartBuilder={handleOpenBuilder}
+                onOpenDetail={handleOpenDay}
                 routines={routines}
                 onRoutinesChange={setRoutines}
               />

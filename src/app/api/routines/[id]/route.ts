@@ -1,50 +1,65 @@
-import { NextResponse } from 'next/server'
-import { db } from '@/db'
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { requireAuth, unauthorizedResponse } from "@/lib/api-auth";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
-  const routine = await db.routine.findUnique({ where: { id } })
+  const { id } = await params;
+  const routine = await db.routine.findUnique({ where: { id } });
 
   if (!routine) {
-    return NextResponse.json({ error: 'Routine not found' }, { status: 404 })
+    return NextResponse.json({ error: "Routine not found" }, { status: 404 });
   }
 
   const days = await db.routineDay.findMany({
     where: { routineId: id },
-    orderBy: { order: 'asc' },
-  })
+    orderBy: { order: "asc" },
+  });
 
-  const dayExercises = await db.routineDayExercise.findMany()
-  const exercises = await db.exercise.findMany()
-  const exerciseMap = new Map(exercises.map(e => [e.id, e]))
+  const dayExercises = await db.routineDayExercise.findMany();
+  const exercises = await db.exercise.findMany();
+  const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
   const result = {
     ...routine,
-    days: days.map(day => ({
+    days: days.map((day) => ({
       ...day,
       exercises: dayExercises
-        .filter(de => de.routineDayId === day.id)
+        .filter((de) => de.routineDayId === day.id)
         .sort((a, b) => a.order - b.order)
-        .map(de => ({
+        .map((de) => ({
           ...de,
           exercise: exerciseMap.get(de.exerciseId),
         })),
     })),
-  }
+  };
 
-  return NextResponse.json(result)
+  return NextResponse.json(result);
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
-  await db.routine.delete({ where: { id } })
-  return NextResponse.json({ success: true })
+  const session = await requireAuth(request);
+  if (!session) return unauthorizedResponse();
+
+  const { id } = await params;
+
+  const routine = await db.routine.findUnique({ where: { id } });
+  if (!routine) {
+    return NextResponse.json({ error: "Routine not found" }, { status: 404 });
+  }
+
+  await db.routineDayExercise.deleteMany({
+    where: { routineDay: { routineId: id } },
+  });
+  await db.routineDay.deleteMany({ where: { routineId: id } });
+  await db.routine.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
 }

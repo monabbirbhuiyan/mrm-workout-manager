@@ -7,6 +7,19 @@ export function LineChart({ data }: { data: Point[] }) {
   const height = 130
   const padX = 8
   const padY = 14
+
+  if (data.length === 0) {
+    return (
+      <div className="w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-32 w-full" role="img" aria-label="Volume trend">
+          <text x={width / 2} y={height / 2} textAnchor="middle" className="fill-muted-foreground text-xs">
+            No data
+          </text>
+        </svg>
+      </div>
+    )
+  }
+
   const values = data.map((d) => d.value)
   const max = Math.max(...values, 1)
   const min = Math.min(...values)
@@ -43,7 +56,6 @@ export function LineChart({ data }: { data: Point[] }) {
             <stop offset="100%" stopColor={accentColor} stopOpacity="0" />
           </linearGradient>
         </defs>
-        {/* Grid lines */}
         {[0.25, 0.5, 0.75].map((pct) => {
           const y = padY + (height - padY * 2) * (1 - pct)
           return (
@@ -69,9 +81,9 @@ export function LineChart({ data }: { data: Point[] }) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {points.map((p) => (
+        {points.map((p, i) => (
           <circle
-            key={p.label}
+            key={`${p.label}-${i}`}
             cx={p.x}
             cy={p.y}
             r="3.5"
@@ -82,8 +94,8 @@ export function LineChart({ data }: { data: Point[] }) {
         ))}
       </svg>
       <div className="mt-1.5 flex justify-between px-0.5">
-        {data.map((d) => (
-          <span key={d.label} className="text-[10px] font-medium text-muted-foreground">
+        {data.map((d, i) => (
+          <span key={`${d.label}-${i}`} className="text-[10px] font-medium text-muted-foreground">
             {d.label}
           </span>
         ))}

@@ -17,14 +17,17 @@ export function AnalyticsScreen() {
   useEffect(() => {
     setLoading(true)
     fetch(`/api/analytics?range=${range}`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load analytics')
+        return r.json()
+      })
       .then((data: AnalyticsData) => {
         setAnalyticsData(data)
         if (data.exerciseOptions.length > 0 && !data.exerciseOptions.includes(exercise)) {
           setExercise(data.exerciseOptions[0])
         }
       })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [range])
 
