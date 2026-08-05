@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { requireAuth, unauthorizedResponse } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +25,6 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireAuth(request);
-  if (!session) return unauthorizedResponse();
-
   const { id } = await params;
 
   const workout = await db.workout.findUnique({ where: { id } });

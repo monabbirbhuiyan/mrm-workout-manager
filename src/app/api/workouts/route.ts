@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { requireAuth, unauthorizedResponse } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +18,6 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await requireAuth(request);
-  if (!session) return unauthorizedResponse();
-
   const body = await request.json();
   const parsed = createWorkoutSchema.safeParse(body);
 

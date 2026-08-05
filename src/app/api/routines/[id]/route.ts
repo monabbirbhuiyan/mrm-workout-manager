@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { requireAuth, unauthorizedResponse } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -42,12 +41,9 @@ export async function GET(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireAuth(request);
-  if (!session) return unauthorizedResponse();
-
   const { id } = await params;
 
   const routine = await db.routine.findUnique({ where: { id } });

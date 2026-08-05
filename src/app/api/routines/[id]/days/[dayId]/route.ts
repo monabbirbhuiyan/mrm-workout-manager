@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { requireAuth, unauthorizedResponse } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +15,6 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; dayId: string }> }
 ) {
-  const session = await requireAuth(request);
-  if (!session) return unauthorizedResponse();
-
   const { dayId } = await params;
 
   const day = await db.routineDay.findUnique({ where: { id: dayId } });
@@ -66,9 +62,6 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; dayId: string }> }
 ) {
-  const session = await requireAuth(request);
-  if (!session) return unauthorizedResponse();
-
   const { dayId } = await params;
   const url = new URL(request.url);
   const exerciseId = url.searchParams.get("exerciseId");
